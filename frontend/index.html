@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waste Classifier - Klasifikasi Sampah</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated Background ── */
+        .bg-particles {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.08;
+            animation: float linear infinite;
+        }
+        @keyframes float {
+            0%   { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10%  { opacity: 0.08; }
+            90%  { opacity: 0.08; }
+            100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* ── Header ── */
+        .header {
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%);
+            padding: 32px 0;
+            text-align: center;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 60%);
+            animation: headerShine 8s ease-in-out infinite;
+        }
+        @keyframes headerShine {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(10%, 10%); }
+        }
+        .header h1 {
+            position: relative;
+            font-size: 32px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        .header-icon {
+            display: inline-block;
+            animation: iconBounce 2s ease-in-out infinite;
+        }
+        @keyframes iconBounce {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(10deg); }
+        }
+        .header p {
+            position: relative;
+            font-size: 14px;
+            color: #a7f3d0;
+            font-weight: 400;
+        }
+
+        /* ── Layout ── */
+        .main {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        /* ── Status Bar ── */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 28px;
+            padding: 10px 20px;
+            background: #1e293b;
+            border-radius: 50px;
+            border: 1px solid #334155;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ef4444;
+            transition: all 0.5s;
+        }
+        .status-dot.connected {
+            background: #10b981;
+            box-shadow: 0 0 12px rgba(16,185,129,0.6);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(16,185,129,0.4); }
+            50% { box-shadow: 0 0 16px rgba(16,185,129,0.8); }
+        }
+        .status-text {
+            color: #94a3b8;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* ── Category Cards ── */
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        .category-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 20px 8px;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+        .category-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(16,185,129,0.15), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .category-card:hover {
+            transform: translateY(-4px);
+            border-color: #475569;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        .category-card.active {
+            border-color: #10b981;
+            background: #064e3b;
+            transform: translateY(-6px) scale(1.03);
+            box-shadow: 0 8px 30px rgba(16,185,129,0.25);
+        }
+        .category-card.active::before { opacity: 1; }
+        .category-icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+            display: block;
+            transition: transform 0.4s;
+        }
+        .category-card:hover .category-icon,
+        .category-card.active .category-icon {
+            transform: scale(1.2);
+        }
+        .category-card.active .category-icon {
+            animation: iconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes iconPop {
+            0% { transform: scale(0.5); }
+            60% { transform: scale(1.3); }
+            100% { transform: scale(1.2); }
+        }
+        .category-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            transition: color 0.3s;
+        }
+        .category-card.active .category-name { color: #6ee7b7; }
+
+        /* ── Upload Section ── */
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        /* ── Upload Box ── */
+        .upload-box {
+            background: #1e293b;
+            border: 2px dashed #334155;
+            border-radius: 20px;
+            padding: 40px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 360px;
+        }
+        .upload-box::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 20px;
+            background: conic-gradient(from 0deg, #10b981, #059669, #047857, #065f46, #047857, #059669, #10b981);
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 0.4s;
+        }
+        .upload-box.dragging {
+            border-color: transparent;
+            transform: scale(1.02);
+        }
+        .upload-box.dragging::after { opacity: 0.6; }
+        .upload-box:hover { border-color: #10b981; background: #1a2536; }
+        .upload-box.has-image {
+            padding: 12px;
+            border-style: solid;
+            border-color: #10b981;
+        }
+        .upload-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            animation: floatIcon 3s ease-in-out infinite;
+        }
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .upload-text { font-size: 16px; color: #94a3b8; margin-bottom: 6px; }
+        .upload-hint { font-size: 12px; color: #64748b; }
+        .preview-image {
+            max-width: 100%;
+            max-height: 330px;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+        .file-input { display: none; }
+
+        /* ── Result Box ── */
+        .result-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 20px;
+            padding: 32px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 360px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ── Placeholder ── */
+        .placeholder-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.4;
+        }
+        .placeholder-text { color: #475569; font-size: 14px; }
+
+        /* ── Spinner ── */
+        .spinner-wrapper { text-align: center; }
+        .spinner {
+            width: 56px;
+            height: 56px;
+            border: 4px solid #1e293b;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+        .spinner::before, .spinner::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 4px solid transparent;
+        }
+        .spinner::before {
+            border-top-color: #10b981;
+            animation: spin 1s linear infinite;
+        }
+        .spinner::after {
+            border-bottom-color: #059669;
+            animation: spin 1.5s linear infinite reverse;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text {
+            color: #64748b;
+            font-size: 14px;
+            animation: loadPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes loadPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4) infinite;
+        }
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+        }
+
+        /* ── Result Content ── */
+        .result-content { width: 100%; }
+        .result-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #64748b;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .result-class {
+            font-size: 26px;
+            font-weight: 800;
+            color: #10b981;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .result-class-id {
+            font-size: 12px;
+            color: #475569;
+            text-align: center;
+            margin-bottom: 20px;
+            font-family: monospace;
+        }
+
+        /* ── Confidence Bar ── */
+        .confidence-wrapper { margin-bottom: 24px; }
+        .confidence-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .confidence-label { font-size: 13px; color: #94a3b8; }
+        .confidence-value {
+            font-size: 15px;
+            font-weight: 800;
+            color: #10b981;
+            font-variant-numeric: tabular-nums;
+        }
+        .confidence-track {
+            width: 100%;
+            height: 14px;
+            background: #0f172a;
+            border-radius: 7px;
+            overflow: hidden;
+            position: relative;
+        }
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #059669, #10b981, #34d399);
+            border-radius: 7px;
+            transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+        }
+        .confidence-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            animation: shimmer 2s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* ── Score Rows ── */
+        .scores-section {
+            border-top: 1px solid #334155;
+            padding-top: 16px;
+        }
+        .scores-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+        .score-row {
+            display: flex;
+            align-items: center;
+            padding: 5px 0;
+        }
+        .score-name {
+            font-size: 12px;
+            color: #94a3b8;
+            flex: 0 0 130px;
+        }
+        .score-track {
+            flex: 1;
+            height: 6px;
+            background: #0f172a;
+            border-radius: 3px;
+            margin: 0 12px;
+            overflow: hidden;
+        }
+        .score-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            background: #334155;
+        }
+        .score-fill.top {
+            background: linear-gradient(90deg, #059669, #10b981);
+        }
+        .score-pct {
+            font-size: 12px;
+            color: #64748b;
+            min-width: 48px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Buttons ── */
+        .btn-group {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+        }
+        .btn {
+            padding: 14px 36px;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .btn:hover::before { opacity: 1; }
+        .btn-primary {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(16,185,129,0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 30px rgba(16,185,129,0.5);
+        }
+        .btn-primary:active { transform: translateY(0) scale(0.98); }
+        .btn-primary:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none;
+        }
+        .btn-secondary {
+            background: #1e293b;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+        .btn-secondary:hover {
+            background: #334155;
+            color: #e2e8f0;
+            transform: translateY(-2px);
+        }
+
+        /* ── Error ── */
+        .error-msg {
+            background: rgba(127,29,29,0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid #991b1b;
+            color: #fca5a5;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        /* ── Vue Transitions ── */
+        .fade-enter-active, .fade-leave-active {
+            transition: all 0.4s ease;
+        }
+        .fade-enter-from { opacity: 0; transform: translateY(10px); }
+        .fade-leave-to { opacity: 0; transform: translateY(-10px); }
+
+        .slide-enter-active, .slide-leave-active {
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .slide-enter-from { opacity: 0; transform: translateY(30px) scale(0.95); }
+        .slide-leave-to { opacity: 0; transform: translateY(-20px) scale(0.95); }
+
+        .pop-enter-active {
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .pop-leave-active {
+            transition: all 0.3s ease;
+        }
+        .pop-enter-from { opacity: 0; transform: scale(0.8); }
+        .pop-leave-to { opacity: 0; transform: scale(0.9); }
+
+        .score-enter-active {
+            transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .score-enter-from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        /* ── Footer ── */
+        .footer {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 28px;
+            color: #475569;
+            font-size: 12px;
+            border-top: 1px solid #1e293b;
+            margin-top: 48px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .categories { grid-template-columns: repeat(3, 1fr); }
+            .upload-section { grid-template-columns: 1fr; }
+            .header h1 { font-size: 24px; }
+            .score-name { flex: 0 0 100px; }
+        }
+        @media (max-width: 480px) {
+            .categories { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+
+    <!-- Animated Background Particles -->
+    <div class="bg-particles">
+        <div v-for="p in particles" :key="p.id" class="particle"
+            :style="{
+                width: p.size + 'px',
+                height: p.size + 'px',
+                left: p.x + '%',
+                background: p.color,
+                animationDuration: p.duration + 's',
+                animationDelay: p.delay + 's'
+            }">
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1><span class="header-icon">&#9851;</span> Waste Classifier</h1>
+        <p>Sistem Klasifikasi Sampah Berbasis Deep Learning (MobileNetV2)</p>
+    </div>
+
+    <div class="main">
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-dot" :class="{ connected: apiConnected }"></div>
+            <span class="status-text">{{ statusText }}</span>
+        </div>
+
+        <!-- Categories -->
+        <div class="categories">
+            <div v-for="cat in categories" :key="cat.id"
+                class="category-card"
+                :class="{ active: predictedClass === cat.id }"
+                :style="{ transitionDelay: (cat.index * 0.05) + 's' }">
+                <span class="category-icon">{{ cat.icon }}</span>
+                <div class="category-name">{{ cat.label }}</div>
+            </div>
+        </div>
+
+        <!-- Upload & Result -->
+        <div class="upload-section">
+
+            <!-- Upload Box -->
+            <div class="upload-box"
+                :class="{ 'has-image': previewUrl, dragging: isDragging }"
+                @click="$refs.fileInput.click()"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="onDrop">
+
+                <transition name="fade" mode="out-in">
+                    <div v-if="!previewUrl" key="placeholder">
+                        <div class="upload-icon">&#128247;</div>
+                        <div class="upload-text">Klik atau seret gambar ke sini</div>
+                        <div class="upload-hint">Format: JPEG, PNG</div>
+                    </div>
+                    <img v-else key="preview" :src="previewUrl" class="preview-image" alt="Preview">
+                </transition>
+
+                <input ref="fileInput" type="file" class="file-input"
+                    accept="image/jpeg,image/png" @change="onFileSelect">
+            </div>
+
+            <!-- Result Box -->
+            <div class="result-box">
+                <transition name="slide" mode="out-in">
+
+                    <!-- Placeholder -->
+                    <div v-if="state === 'idle'" key="idle" style="text-align:center">
+                        <div class="placeholder-icon">&#128270;</div>
+                        <p class="placeholder-text">Hasil klasifikasi akan muncul di sini</p>
+                    </div>
+
+                    <!-- Loading -->
+                    <div v-else-if="state === 'loading'" key="loading" class="spinner-wrapper">
+                        <div class="spinner"></div>
+                        <div class="loading-text">Menganalisis gambar<span class="loading-dots"></span></div>
+                    </div>
+
+                    <!-- Result -->
+                    <div v-else-if="state === 'result'" key="result" class="result-content">
+                        <transition name="pop" appear>
+                            <div>
+                                <div class="result-label">Terdeteksi sebagai</div>
+                                <div class="result-class">{{ resultIcon }} {{ resultLabel }}</div>
+                                <div class="result-class-id">{{ predictedClass }}</div>
+                            </div>
+                        </transition>
+
+                        <div class="confidence-wrapper">
+                            <div class="confidence-header">
+                                <span class="confidence-label">Confidence</span>
+                                <span class="confidence-value">{{ confidencePct }}%</span>
+                            </div>
+                            <div class="confidence-track">
+                                <div class="confidence-fill" :style="{ width: confidencePct + '%' }"></div>
+                            </div>
+                        </div>
+
+                        <div v-if="sortedScores.length" class="scores-section">
+                            <div class="scores-title">Semua Skor</div>
+                            <transition-group name="score" tag="div">
+                                <div v-for="(s, idx) in sortedScores" :key="s.name"
+                                    class="score-row"
+                                    :style="{ transitionDelay: (idx * 0.08) + 's' }">
+                                    <span class="score-name">{{ classLabels[s.name] || s.name }}</span>
+                                    <div class="score-track">
+                                        <div class="score-fill"
+                                            :class="{ top: idx === 0 }"
+                                            :style="{ width: (s.score * 100).toFixed(1) + '%' }">
+                                        </div>
+                                    </div>
+                                    <span class="score-pct">{{ (s.score * 100).toFixed(1) }}%</span>
+                                </div>
+                            </transition-group>
+                        </div>
+                    </div>
+
+                </transition>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="btn-group">
+            <button class="btn btn-primary"
+                :disabled="!selectedFile || state === 'loading'"
+                @click="predict">
+                <span v-if="state === 'loading'">Menganalisis...</span>
+                <span v-else>Klasifikasi</span>
+            </button>
+            <button class="btn btn-secondary" @click="reset">Reset</button>
+        </div>
+
+        <!-- Error -->
+        <transition name="fade">
+            <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
+        </transition>
+    </div>
+
+    <div class="footer">
+        Waste Classification System &mdash; MobileNetV2 Transfer Learning &mdash; FastAPI Backend
+    </div>
+
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+
+createApp({
+    setup() {
+        const API_URL = 'http://localhost:8000';
+
+        const classLabels = {
+            plastic_bottle: 'Botol Plastik',
+            carton_brick: 'Karton / Tetra Pak',
+            metal_packaging: 'Kemasan Logam',
+            household_waste: 'Sampah Rumah Tangga',
+            paper_cardboard: 'Kertas & Kardus',
+            glass: 'Kaca'
+        };
+        const classIcons = {
+            plastic_bottle: '\u{1F9F4}',
+            carton_brick: '\u{1F9C3}',
+            metal_packaging: '\u{1F96B}',
+            household_waste: '\u{1F5D1}',
+            paper_cardboard: '\u{1F4E6}',
+            glass: '\u{1F377}'
+        };
+
+        const categories = [
+            { id: 'plastic_bottle', icon: '\u{1F9F4}', label: 'Plastic Bottle', index: 0 },
+            { id: 'carton_brick', icon: '\u{1F9C3}', label: 'Carton Brick', index: 1 },
+            { id: 'metal_packaging', icon: '\u{1F96B}', label: 'Metal', index: 2 },
+            { id: 'household_waste', icon: '\u{1F5D1}', label: 'Household', index: 3 },
+            { id: 'paper_cardboard', icon: '\u{1F4E6}', label: 'Paper', index: 4 },
+            { id: 'glass', icon: '\u{1F377}', label: 'Glass', index: 5 }
+        ];
+
+        // Particles
+        const particles = Array.from({ length: 20 }, (_, i) => ({
+            id: i,
+            size: Math.random() * 60 + 20,
+            x: Math.random() * 100,
+            color: ['#10b981', '#059669', '#047857', '#34d399'][Math.floor(Math.random() * 4)],
+            duration: Math.random() * 20 + 15,
+            delay: Math.random() * 10
+        }));
+
+        // State
+        const apiConnected = ref(false);
+        const modelLoaded = ref(false);
+        const statusText = ref('Memeriksa koneksi API...');
+        const selectedFile = ref(null);
+        const previewUrl = ref(null);
+        const isDragging = ref(false);
+        const state = ref('idle'); // idle | loading | result
+        const predictedClass = ref(null);
+        const confidence = ref(0);
+        const allScores = ref({});
+        const errorMsg = ref(null);
+
+        const confidencePct = computed(() => (confidence.value * 100).toFixed(1));
+        const resultLabel = computed(() => classLabels[predictedClass.value] || predictedClass.value);
+        const resultIcon = computed(() => classIcons[predictedClass.value] || '');
+        const sortedScores = computed(() => {
+            return Object.entries(allScores.value)
+                .map(([name, score]) => ({ name, score }))
+                .sort((a, b) => b.score - a.score);
+        });
+
+        // API check
+        let interval;
+        async function checkAPI() {
+            try {
+                const res = await fetch(API_URL + '/');
+                const data = await res.json();
+                apiConnected.value = true;
+                modelLoaded.value = data.model_loaded;
+                statusText.value = data.model_loaded
+                    ? 'API terhubung \u2014 Model siap'
+                    : 'API terhubung \u2014 Model belum dimuat (jalankan train.py)';
+            } catch {
+                apiConnected.value = false;
+                modelLoaded.value = false;
+                statusText.value = 'API tidak terhubung \u2014 Jalankan backend terlebih dahulu';
+            }
+        }
+
+        onMounted(() => {
+            checkAPI();
+            interval = setInterval(checkAPI, 10000);
+        });
+        onUnmounted(() => clearInterval(interval));
+
+        // File handling
+        function onFileSelect(e) {
+            handleFile(e.target.files[0]);
+        }
+        function onDrop(e) {
+            isDragging.value = false;
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) handleFile(file);
+        }
+        function handleFile(file) {
+            if (!file) return;
+            selectedFile.value = file;
+            errorMsg.value = null;
+            const reader = new FileReader();
+            reader.onload = (e) => { previewUrl.value = e.target.result; };
+            reader.readAsDataURL(file);
+        }
+
+        // Predict
+        async function predict() {
+            if (!selectedFile.value) return;
+            state.value = 'loading';
+            errorMsg.value = null;
+            predictedClass.value = null;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile.value);
+
+            try {
+                const res = await fetch(API_URL + '/predict', { method: 'POST', body: formData });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Gagal melakukan prediksi');
+                }
+                const data = await res.json();
+                predictedClass.value = data.class;
+                confidence.value = data.confidence;
+                allScores.value = data.all_scores || {};
+                state.value = 'result';
+            } catch (err) {
+                errorMsg.value = err.message;
+                state.value = 'idle';
+            }
+        }
+
+        // Reset
+        function reset() {
+            selectedFile.value = null;
+            previewUrl.value = null;
+            state.value = 'idle';
+            predictedClass.value = null;
+            confidence.value = 0;
+            allScores.value = {};
+            errorMsg.value = null;
+        }
+
+        return {
+            classLabels, categories, particles,
+            apiConnected, statusText,
+            selectedFile, previewUrl, isDragging,
+            state, predictedClass, confidence, confidencePct,
+            resultLabel, resultIcon, allScores, sortedScores,
+            errorMsg,
+            onFileSelect, onDrop, predict, reset
+        };
+    }
+}).mount('#app');
+</script>
+
+</body>
+</html>
