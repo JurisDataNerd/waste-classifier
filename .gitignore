@@ -1,0 +1,14 @@
+# Dataset & model
+dataset/
+model/
+
+# Python
+__pycache__/
+*.pyc
+
+# Conda / venv
+venv/
+.env
+
+# OS
+.DS_Store

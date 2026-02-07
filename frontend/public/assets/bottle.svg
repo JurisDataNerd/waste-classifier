@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Cap -->
+  <rect x="82" y="16" width="36" height="18" rx="4" fill="#BADFCD" opacity="0.9"/>
+  <!-- Neck -->
+  <path d="M88 34 L88 52 Q88 56 84 58 L84 58 Q80 60 80 64 L80 64 L120 64 Q120 60 116 58 L116 58 Q112 56 112 52 L112 34Z" fill="#05B084" opacity="0.85"/>
+  <!-- Body -->
+  <rect x="72" y="64" width="56" height="110" rx="10" fill="#05B084"/>
+  <!-- Label -->
+  <rect x="78" y="90" width="44" height="50" rx="6" fill="#BADFCD" opacity="0.35"/>
+  <!-- Recycle symbol on label -->
+  <text x="100" y="122" text-anchor="middle" font-size="24" fill="#015A84" opacity="0.4">&#9851;</text>
+  <!-- Shine -->
+  <rect x="80" y="68" width="8" height="90" rx="4" fill="white" opacity="0.2"/>
+  <!-- Bottom -->
+  <ellipse cx="100" cy="174" rx="28" ry="4" fill="#015A84" opacity="0.15"/>
+</svg>
