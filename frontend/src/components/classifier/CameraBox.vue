@@ -2,8 +2,8 @@
   <div
     class="bg-white border border-secondary/15 rounded-[20px] min-h-[380px] flex flex-col items-center justify-center relative overflow-hidden"
     :class="{
-      '!border-primary p-3': capturedPreviewUrl,
-      'p-8': !capturedPreviewUrl,
+      '!border-primary p-3': capturedPreviewUrl && !isLiveMode,
+      'p-8': !capturedPreviewUrl || isLiveMode,
     }"
   >
     <!-- Error state -->
@@ -32,9 +32,9 @@
       </button>
     </div>
 
-    <!-- Captured preview -->
+    <!-- Captured preview (manual mode only) -->
     <Transition v-else name="fade" mode="out-in">
-      <div v-if="capturedPreviewUrl" key="preview" class="w-full">
+      <div v-if="capturedPreviewUrl && !isLiveMode" key="preview" class="w-full">
         <img
           :src="capturedPreviewUrl"
           class="max-w-full max-h-[350px] rounded-xl object-contain mx-auto"
@@ -60,6 +60,15 @@
 
         <!-- Video feed -->
         <div v-show="isActive" class="relative w-full">
+          <!-- LIVE badge -->
+          <div
+            v-if="isLiveMode"
+            class="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-red-600/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-lg"
+          >
+            <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+            LIVE
+          </div>
+
           <video
             ref="videoRef"
             class="w-full max-h-[320px] object-cover rounded-xl bg-black"
@@ -89,8 +98,9 @@
               </svg>
             </button>
 
-            <!-- Shutter -->
+            <!-- Shutter (manual mode) -->
             <button
+              v-if="!isLiveMode"
               class="w-16 h-16 rounded-full bg-white border-4 border-white/50 shadow-lg hover:scale-105 active:scale-95 transition-transform duration-200 flex items-center justify-center"
               title="Ambil foto"
               @click="onCapture"
@@ -98,8 +108,30 @@
               <div class="w-12 h-12 rounded-full bg-white border-2 border-secondary/10"></div>
             </button>
 
-            <!-- Spacer for symmetry -->
-            <div class="w-10 h-10"></div>
+            <!-- Stop Live (live mode) -->
+            <button
+              v-else
+              class="w-16 h-16 rounded-full bg-red-500 border-4 border-red-400/50 shadow-lg hover:scale-105 active:scale-95 transition-transform duration-200 flex items-center justify-center"
+              title="Stop live"
+              @click="onToggleLive"
+            >
+              <div class="w-6 h-6 rounded-sm bg-white"></div>
+            </button>
+
+            <!-- Live toggle button -->
+            <button
+              v-if="!isLiveMode"
+              class="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300"
+              title="Mode live"
+              @click="onToggleLive"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              </svg>
+            </button>
+
+            <!-- Spacer when in live mode (for symmetry) -->
+            <div v-else class="w-10 h-10"></div>
           </div>
         </div>
       </div>
@@ -117,9 +149,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   fileSelected: [file: File]
+  liveToggled: [isLive: boolean]
 }>()
 
 const videoRef = ref<HTMLVideoElement | null>(null)
+const isLiveMode = ref(false)
 
 const {
   isActive,
@@ -129,6 +163,7 @@ const {
   stop,
   switchCamera,
   capture,
+  captureFrame,
   resetCapture,
 } = useCamera()
 
@@ -160,7 +195,23 @@ async function onSwitchCamera() {
   }
 }
 
+function onToggleLive() {
+  isLiveMode.value = !isLiveMode.value
+  if (isLiveMode.value) {
+    resetCapture()
+  }
+  emit('liveToggled', isLiveMode.value)
+}
+
+function getVideoEl(): HTMLVideoElement | null {
+  return videoRef.value
+}
+
 function reset() {
+  if (isLiveMode.value) {
+    isLiveMode.value = false
+    emit('liveToggled', false)
+  }
   resetCapture()
   stop()
 }
@@ -171,6 +222,10 @@ watch(
     if (active) {
       setTimeout(() => startCamera(), 50)
     } else {
+      if (isLiveMode.value) {
+        isLiveMode.value = false
+        emit('liveToggled', false)
+      }
       stop()
     }
   },
@@ -186,5 +241,5 @@ onUnmounted(() => {
   stop()
 })
 
-defineExpose({ reset, previewUrl })
+defineExpose({ reset, previewUrl, getVideoEl, captureFrame })
 </script>

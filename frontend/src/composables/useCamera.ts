@@ -87,6 +87,31 @@ export function useCamera() {
     })
   }
 
+  function captureFrame(videoEl: HTMLVideoElement): Promise<File | null> {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = videoEl.videoWidth
+      canvas.height = videoEl.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(null)
+        return
+      }
+      ctx.drawImage(videoEl, 0, 0)
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(null)
+            return
+          }
+          resolve(new File([blob], `live-${Date.now()}.jpg`, { type: 'image/jpeg' }))
+        },
+        'image/jpeg',
+        0.7,
+      )
+    })
+  }
+
   function resetCapture() {
     capturedPreviewUrl.value = null
     capturedFile.value = null
@@ -107,6 +132,7 @@ export function useCamera() {
     stop,
     switchCamera,
     capture,
+    captureFrame,
     resetCapture,
   }
 }

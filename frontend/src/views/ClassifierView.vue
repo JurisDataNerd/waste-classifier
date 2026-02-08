@@ -49,16 +49,18 @@
           ref="cameraBoxRef"
           :active="inputMode === 'camera'"
           @file-selected="onFileSelected"
+          @live-toggled="onLiveToggled"
         />
         <ResultBox
           :state="state"
           :predicted-class="predictedClass"
           :confidence="confidence"
           :preview-url="previewUrl"
+          :is-live="isLive"
         />
       </div>
 
-      <div class="flex gap-3.5 justify-center">
+      <div v-if="!isLive" class="flex gap-3.5 justify-center">
         <button
           class="px-9 py-3.5 rounded-[14px] text-[15px] font-bold border-none cursor-pointer transition-all duration-300 bg-primary text-white shadow-[0_4px_20px_rgba(5,176,132,0.25)] hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_8px_30px_rgba(5,176,132,0.35)] active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:!transform-none disabled:!shadow-none"
           :style="{ transitionTimingFunction: 'cubic-bezier(0.34,1.56,0.64,1)' }"
@@ -129,7 +131,7 @@ import { useApiHealth } from '@/composables/useApiHealth'
 import { useClassifier } from '@/composables/useClassifier'
 
 const { isConnected, statusText } = useApiHealth()
-const { state, predictedClass, confidence, errorMsg, predict, reset } = useClassifier()
+const { state, predictedClass, confidence, errorMsg, isLive, predict, startLive, stopLive, reset } = useClassifier()
 
 const selectedFile = ref<File | null>(null)
 const uploadBoxRef = ref<InstanceType<typeof UploadBox> | null>(null)
@@ -137,6 +139,7 @@ const cameraBoxRef = ref<InstanceType<typeof CameraBox> | null>(null)
 const inputMode = ref<'upload' | 'camera'>('upload')
 
 const previewUrl = computed(() => {
+  if (isLive.value) return null
   if (inputMode.value === 'camera') {
     return cameraBoxRef.value?.previewUrl ?? null
   }
@@ -168,6 +171,19 @@ async function onSampleClick(src: string) {
 async function onPredict() {
   if (selectedFile.value) {
     await predict(selectedFile.value)
+  }
+}
+
+function onLiveToggled(live: boolean) {
+  if (live) {
+    selectedFile.value = null
+    startLive(async () => {
+      const videoEl = cameraBoxRef.value?.getVideoEl()
+      if (!videoEl) return null
+      return cameraBoxRef.value?.captureFrame(videoEl) ?? null
+    })
+  } else {
+    stopLive()
   }
 }
 
